@@ -1,0 +1,416 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  word_document: default
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+# Cover Page
+
+# I/ Preparation phase
+
+### Install essential packages for the analysis
+
+```{r results = "hide"}
+installed.packages("tidyverse")
+library("tidyverse")
+```
+
+### Import dataset into the project
+
+```{r results = "hide"}
+Automobile <- read_csv("Automobile.csv")
+Engine <- read_csv("Engine.csv")
+Maintenance <- read_csv("Maintenance.csv")
+
+```
+
+# II/ Assignment completion phase
+
+### Question 1
+
+#### 1.1 Inspect data frames that I have imported.
+
+In order to ensure the effective workflow from start to end, I will
+inspect the data and check whether any duplicates exist in distinct key
+columns of each table.
+
+```{r 1.1 code Automobile check}
+Automobile #show the data from file Automobile
+duplicated(Automobile$PlateNumber) #no duplicates exist
+```
+
+Automobile table has 204 rows and 13 columns
+
+```{r 1.1 code Engine check}
+Engine #Show the data from file Engine.csv
+duplicated(Engine$EngineModel) #identify 4 duplicates in this table
+```
+
+Engine table has 88 rows and 8 columns with 4 duplicates identified.
+
+```{r remove duplicates}
+Engine <- distinct(Engine,EngineModel,.keep_all=TRUE) #remove duplicates
+Engine #check again
+```
+
+```{r 1.1 code Maintenance check}
+Maintenance #show the data from Maintenance.csv file
+duplicated(Maintenance$ID) #no duplicates identified
+```
+
+Maintenance table has 374 rows and 7 columns
+
+#### 1.2 Replace any "?" with NA in dataset
+
+```{r 1.2 code Checking mising value}
+#CHECK WHICH TABLE HAS MISSING VALUES
+#First, identify missing values in different tables
+Auto_missing_check <- Automobile %>% 
+  filter(if_any(everything(),~.=="?"))
+
+Engine_missing_check <- Engine %>% 
+  filter(if_any(everything(),~.=="?"))
+
+Maintenance_missing_check <- Maintenance %>% 
+  filter(if_any(everything(),~.=="?"))
+```
+
+#### Description 
+In the script above, I used filter in the "Tidyverse"
+package in order to identify missing values existing in these tables.
+However, filter function only categorizes one column identified clearly,
+whereas the missing values can exist in any columns. Therefore, I added
+if_any(everything()) function in order to increase filtering scope with
+the condition (\~.=="?") to make the code scan each row in a table
+containing "?".
+
+```{r 1.2 code detect missing values, echo=TRUE, results="hide"}
+#Second, check what tables have missing value
+Auto_missing_check #There is no missing values
+Maintenance_missing_check #There is no missing values
+```
+
+```{r 1.2 code Found missing value, echo=TRUE}
+Engine_missing_check #Found missing values in this table
+```
+
+#### Replace missing value with NA in the Engine table
+
+```{r 1.2 code solve the question}
+Engine <- Engine %>% mutate(across(everything(),~ifelse(. =="?",NA,.)))
+```
+
+Description: I used #mutate() function in the "tidyverse" package to
+replace the value in a table. Moreover, #across(everything()) is used in
+order to make this code applied in a whole table rather than a specific
+column. #Ifelse() is used instead of #if(), because #if() only returns
+the first value, while #ifelse() can repeatedly evaluate many values and
+conduct action when it meets the condition.
+
+#### Check whether the missing values are replaced or not
+```{r 1.2 code check the result}
+Engine_missing_check #Before: The old table indicates "?" as MISSING VALUES
+Engine_Check <- Engine %>% filter(EngineModel %in% c("E-0011","E-0049","E-0050",
+                  "E-0051","E-0052","E-0057")) #choose engine models that contain "?" before 
+                                          
+Engine_Check #After: The new table indicates missing values as NA
+```
+
+#### 1.3 Convert categorical variables BodyStyles, FuelTypes, ErrorCodes to factors
+
+```{r 1.3 code Convert data type}
+Automobile$BodyStyles <- as.factor(Automobile$BodyStyles)
+Engine$FuelTypes <- as.factor(Engine$FuelTypes)
+Maintenance$ErrorCodes <- as.factor(Maintenance$ErrorCodes)
+```
+#### Description
+"as.factor" is a function that transform the data type from any types to Factor
+
+```{r 1.3 code check the answer}
+#Check the datatype of each variable: All variables are converted to factors
+str(Automobile$BodyStyles)
+str(Engine$FuelTypes)
+str(Maintenance$ErrorCodes)
+```
+
+#### 1.4 Replace the missing value in Horsepower column with mean of Horsepower
+
+```{r 1.4 code Replace missing value}
+Engine$Horsepower <- as.numeric(Engine$Horsepower) #change the data type first
+mean_Horsepower <- mean(Engine$Horsepower,na.rm=TRUE) #calculate the mean of Horsepower column
+                                                        
+mean_Horsepower <- round(mean_Horsepower,digits=2) #limit the digit of result
+
+
+Engine <- Engine %>% mutate(Horsepower = replace(Horsepower,is.na(Horsepower),
+                                       mean_Horsepower)) #replace the NA value
+```
+
+```{r 1.4 code check result}
+#Check the result
+checkNA_horsepower <- Engine_Check %>% filter(is.na(Horsepower))
+checkNA_horsepower #Old table: NA still indicates in old table
+Check_New_Engine <- Engine %>% filter(EngineModel=="E-0057")
+Check_New_Engine #New table: NA is replaced with the mean of Horsepower
+```
+
+#### 1.5 Display Horsepower distribution
+
+To display the Horsepower distribution, I used histogram chart to make
+the distribution visualization transparent.
+
+```{r 1.5 code display horsepower distribution}
+sqrt(nrow(Engine)) #calculate the number of bins.
+ggplot(data=Engine, mapping=aes(x=Horsepower))+ #set up data and aesthetics for chart
+  geom_histogram(bins=9,color="black",fill="gray")+ #set up design of the chart
+  labs(title = "Distribution of Horsepower",x="Horsepower",y="Frequency") #change and add name for a chart
+```
+
+### Question 2
+
+#### 2.1 Analysis of Horsepower distribution across the number of cylinders
+
+```{r 2.1 code Visualization of Horsepower distribution by cylinder numbers}
+
+ggplot(data= Engine,mapping=aes(x=Horsepower,fill=factor(NumCylinders)))+ #fill() to color the value of horsepower by each cylinder number, factor() is used to change the data type of this column to factor.
+  geom_histogram(bins=9, color="black")+ #set up design of the chart
+  labs(title = "Distribution of Horsepower by Number of Cylinders",
+       x="Horsepower",y="Frequency",fill="Number of Cylinders")
+```
+
+#### Description
+Instead of writing code for analysis and visualization separately, I chose to combine them into a single code block and visualize the pattern of horsepower distribution by cylinders as a histogram for straightforward analysis and understanding.
+
+#### Analysis
+
+The Horsepower distribution is skewed-right. Overall, most engines
+frequently have a horsepower capacity lower than 200 hp, which is also
+regarded as the most popular range for vehicles. Among the number of
+cylinders, engines with 4 cylinders tend to have the horsepower ranging
+from 50 to 150 hp. In the medium range from 100 to 200 hp, 6-cylinder
+engines are distributed widely. Meanwhile, in the higher horsepower
+range, 8-cylinder engines show a higher distribution from 150 to over
+300 horsepower. Additionally, 2-,3- and 5-cylinders are regarded as rare
+engine that provide low horsepower capacity as 4 cylinders, while
+12-cylinder engine is also a scarce option in the high-range level with
+has nearly 300 hp. In conclusion, the distribution data showcases that
+4-cylinder engines dominates the low-capacity segment for everyday
+vehicles, while 6- and 8- cylinder engines are more ubiquitous in mid
+and high performance cars.
+
+#### 2.2 Distribution of the horsepower across the groups of the engine sizes (e.g., 60-100, 101-200, 201-300, 301+).
+
+```{r 2.2 code Horsepower distribution by engine size groups}
+#Create a new column that is categorized by engine size groups
+Engine <- Engine %>% mutate( EngineGroup = cut(EngineSize, 
+                                              breaks=c(0,60,100,200,300,Inf), #define the range for categorizing
+                                              labels=c("0-60","60-100","100-200",
+                                                       "200-300","300+"))) %>% 
+                                              group_by(EngineGroup) #group data by the EngineGroup column
+Engine #check the new column named EngineGroup
+ggplot(data = Engine, mapping=aes(x=Horsepower,fill=factor(EngineGroup)))+ #define main parameters of chart
+  geom_histogram(bins=10,color="black")+ #set the specification for the chart
+  labs(title="Horsepower distribution by the engine sizes",
+       x="Horsepower",y="Frequency",fill="Engine Size") # add details for the histogram chart
+```
+
+#### Description
+
+To create a histogram of horsepower distribution by the groups of engine
+sizes, I firstly had to create a column named "EngineGroup" that can
+categorize each value in the Horsepower column into different groups as
+the question required. Therefore, I used cut() to categorize value in
+the EngineSize column into different group as the code above. Then, I
+grouped the data by EngineGroup column for creating chart after that.
+
+#### Analysis
+
+The Horsepower distribution by the engine sizes is skewed-right.
+Overall, engine in the group 100-200 is the most popular size in
+vehicles. Particularly, this engine size can have the horsepower ranging
+from 50 to roundly 200 hp, which give the wide range of capacity from
+low to medium. Besides, engine size in the 60-100 group is also the
+second popular group, which has lower frequency compared to the first
+one. Moreover, this group is distributed more in the the low level of
+horsepower, ranging from 50 to approximately 150. Additionally, the low
+range also contains group 0-60, regarded as a rare size that has the
+lowest horsepower at 50 hp. Meanwhile, from the medium to high capacity
+level, there are 2 engine groups, including 200-300, and over 300, which
+are also unpopular sizes distributed from 150 to 300 hp, and roughly 200
+to 250, respectively. In conclusion, engine size 100-200 is the most
+popular size for normal vehicles with the low (~50 hp) to medium (~200
+hp) capacity, while other groups, such as 0-60 or 60-100, are less used
+in this range. In the medium-high range, this is also a rare range for a
+typical everyday vehicle with engine size 200-300 and over 300. However,
+since they have high horsepower capacity (from 200 to over 300 hp), they
+tend to be used for high-performance vehicles.
+
+### Question 3
+
+#### 3.1 Filter out those engines in the dataset that have trouble or are suspected of having trouble
+
+```{r 3.1 Filter vehicles that have trouble or are suspected of having}
+engine_trouble <- Maintenance %>% filter((ErrorCodes=="1")) #filter based on condition
+engine_trouble #check the result, the new table is completely created
+```
+
+#### Description
+
+According to the question, ErrorCodes can display the status of vehicle,
+so ErrorCodes having "1", which was for engine trouble vehicles, would be filtered out into another table.
+
+#### 3.2 what are the top 5 most common troubles related to the engines?
+
+```{r 3.2 5 most common troubles related to engines}
+top_5_engine_trouble <- engine_trouble %>% select(Troubles) %>% #take the Troubles column from data engine_trouble
+  group_by(Troubles) %>% #group Troubles column
+  summarise(Times= n()) %>% #add another column that calculate the sum of duplicates of each group
+  arrange(desc(Times)) %>% slice_head(n=5) #arrange data in descending order and extract top 5
+  
+top_5_engine_trouble #show the top 5 problems related to engines
+```
+
+#### Description
+To create the top 5 problems in the engine, I grouped the values in the Troubles column and then created a new column that calculated the number of values in each group and arranged it in descending order. Finally, I only took the first five values and saved it into a new table named "top_5_engine_trouble".
+
+#### Result
+There are 5 main problems happened frequently in engines, including cylinders, ignition, noise, valve clearance, and fans.
+
+#### 3.3 Do the troubles differ between fuel types?
+
+```{r 3.3 engine troubles by fuel types}
+engine_by_fuel <- engine_trouble %>% left_join(Automobile, by="PlateNumber") #combine first two tables (engine_trouble & Automobile)
+engine_by_fuel #check the first combination of Automobile and engine_trouble data
+
+engine_by_fuel_2 <- engine_by_fuel %>% left_join(Engine, by="EngineModel") #combine the first table with Engine table using Left_join()
+engine_by_fuel_2 #check the final combination between 3 table
+
+trouble_by_fuel <- engine_by_fuel_2 %>% select(Troubles,FuelTypes) #create a different table that take selected columns inside that
+trouble_by_fuel
+```
+#### Description
+- To filter the troubles by fuel types, I had to combine the first two tables (the engine_trouble and Automobile table), which have a similar key column (PlateNumber). After that, I joined it with the second table (Engine), which allowed me to extract the values of FuelTypes column using the key column (EngineModel).
+- Using left_join() helped me to extract only the values for engines with defined troubles, instead of all values.
+- Creating a different table named "trouble_by_fuel" allowed me to take only essential columns, which are clearer than a table full of 27 columns.
+
+#### 3.4 Provide a table to rank the top 5 troubles for diesel and gas engines separately.
+
+```{r top_5_table}
+top_5_diesel_trouble <- trouble_by_fuel %>% filter(FuelTypes=="diesel") %>% 
+  select(Troubles) %>% #take the Troubles column only
+  group_by(Troubles) %>% #group data in the Troubles column
+  summarise(TroubleCount = n()) %>% #add another column calculate each Trouble group
+  arrange(desc(TroubleCount)) %>% slice_head(n=5) #arrange in descending order and extract first 5 rows
+top_5_diesel_trouble # check top 5 trouble in diesel engine
+```
+
+```{r}
+top_5_gas_trouble <- trouble_by_fuel %>% filter(FuelTypes=="gas") %>% 
+  select(Troubles) %>% #only take the Troubles column
+  group_by(Troubles) %>% #group data in Troubles column
+  summarise(TroubleCount = n()) %>% #add a column that count each data in group
+  arrange(desc(TroubleCount)) %>% slice_head(n=5) #arrange in descending order and extract first 5 rows
+top_5_gas_trouble #Check top 5 trouble in gas engine
+```
+#### Conclusion for question 3
+The engine troubles, in general, have one similar problem, which is cylinders with the cases ranked first and second for both fuel types (gas, diesel). However, the rest of problems differed between the two fuel types. In particular, while popular issues for the diesel engines were cam shaft, crank shaft, stroke issues, and ECU power, the most common problems in gas engines were ignition, noise, valve clearance, and fans.
+
+### Question 4
+#### Target description 
+Based on the question, I will choose 2 of factors, including BodyStyles, and EngineGroup, to analyze the features that each maintenance method (Urgent care, Adjustment, Replacement) frequently have.
+
+#### 4.1 Conduct combining factors from 3 tables that may have effect on the maintenance methods.
+```{r}
+# JOINING 3 TABLES
+error_vehicle <- Maintenance %>% filter((ErrorCodes=="1")|(ErrorCodes=="-1")) #create table of vehicles that have troubles related to both engine and component
+
+error_vehicle_comp1 <- error_vehicle %>% left_join(Automobile, by="PlateNumber") #combine first two tables (engine_trouble & Automobile)
+error_vehicle_comp2 <- error_vehicle_comp1 %>% left_join(Engine, by="EngineModel") %>%  #combine the first table with Engine table using Left_join()
+  select(Methods,Troubles,Manufactures,BodyStyles,DriveWheels,EngineModel,NumCylinders,EngineGroup) #only take factors might affect maintenance methods
+error_vehicle_comp2 #check the final table
+```
+
+#### 4.2 Analyze 2 features (BodyStyle, EngineGroup) affecting each maintenance method (Urgent care, Replacement, Adjustment)
+#### Urgent Care method analysis
+```{r Urgent Care method analysis}
+UrgentCare_BodyStyles <- error_vehicle_comp2 %>% 
+  filter(Methods =="Urgent care") %>% #Only take 1 method
+  select(BodyStyles) %>% #Find pattern of BodyStyles in this method
+  group_by(BodyStyles) %>% #Group data for counting values in the next column
+  summarise(Count= n()) %>% #Create a column that count value in each category
+  mutate(Percent = round(Count/sum(Count)*100,digits=2 )) %>% #Calculate the % of each category
+  arrange(desc(Percent)) #Arrange it in descending order to showcase the pattern
+
+UrgentCare_EngineGroup <- error_vehicle_comp2 %>% 
+  filter(Methods =="Urgent care") %>% #Only take 1 method
+  select(EngineGroup) %>% #Find pattern of EngineGroup in this method
+  group_by(EngineGroup) %>% #Group data for counting values in the next column
+  summarise(Count= n()) %>% #Create a column that count value in each category
+  mutate(Percent = round(Count/sum(Count)*100, digits =2)) %>% #Calculate the % of each category
+  arrange(desc(Percent)) #Arrange it in descending order to showcase the pattern
+  
+UrgentCare_BodyStyles #check body style pattern of the urgent care method
+UrgentCare_EngineGroup #check engine range pattern of the urgent care method
+```
+#### Urgent care findings
+
+- Body Styles: Trouble vehicles that are maintained through Urgent Care method tend to be sedan and hatchback cars. In particular, 51.85 percent of vehicles maintained are Sedans, while 33.3 percent of it are Hatchback designs. In contrast, hardtop and wagon cars are only recorded a few cases under this method.
+
+- Engine Group: In Urgent Care method, there are frequently everyday vehicles ranging from low to medium engine size. Specifically, maintenance cases appear more in medium engine group (100-200) with the rate of 59,26 percent, and low engine group (60-100) with the rate of 37.04 percent.
+
+#### Replacement method analysis
+```{r Replacement method analysis} 
+Replacement_BodyStyles <- error_vehicle_comp2 %>% 
+  filter(Methods =="Replacement") %>% #Only take 1 method
+  select(BodyStyles) %>% #Find pattern of BodyStyles in this method
+  group_by(BodyStyles) %>% #Group data for counting values in the next column
+  summarise(Count= n()) %>% #Create a column that count value in each category
+  mutate(Percent = round(Count/sum(Count)*100,digits=2 )) %>% #Calculate the % of each category
+  arrange(desc(Percent)) #Arrange it in descending order to showcase the pattern
+
+Replacement_EngineGroup <- error_vehicle_comp2 %>% 
+  filter(Methods =="Replacement") %>% #Only take 1 method
+  select(EngineGroup) %>% #Find pattern of EngineGroup in this method
+  group_by(EngineGroup) %>% #Group data for counting values in the next column
+  summarise(Count= n()) %>% #Create a column that count value in each category
+  mutate(Percent = round(Count/sum(Count)*100, digits =2)) %>% #Calculate the % of each category
+  arrange(desc(Percent)) #Arrange it in descending order to showcase the pattern
+  
+Replacement_BodyStyles #check body style pattern of the replacement method
+Replacement_EngineGroup #check engine range pattern of the replacement method
+```
+#### Replacement findings:
+- Body Styles: With Replacement method, there are more cases recorded than the Urgent Care method, particularly 5 different body styles. However, similarly to the previous one, Sedans and Hatchbacks dominate maintenance cases with 47.34 and 33.51 percent, respectively. Moreover, Wagon cars are the third frequent cases under this method, at 12.77 percent, which is in contrast with other body styles, such as Convertible (4.26%) and Hardtop (2.13%).
+- Engine Group: Engine size Group that are prevalent in this method are 100-200 and 60-100 group, which is considered low to medium engine group. Particularly, 63.83 percent of vehicles belongs to 100-200 group, and 31.91 percent of them is in 60-100 group. On the other hand, 200-300 and over 300 group are rarely seen with low percentage, with 3.72 and 0.53 percent, respectively. 
+
+#### Adjustment method analysis
+```{r Adjustment method analysis}
+Adjustment_BodyStyles <- error_vehicle_comp2 %>% 
+  filter(Methods =="Adjustment") %>% #Only take 1 method
+  select(BodyStyles) %>% #Find pattern of BodyStyles in this method
+  group_by(BodyStyles) %>% #Group data for counting values in the next column
+  summarise(Count= n()) %>% #Create a column that count value in each category
+  mutate(Percent = round(Count/sum(Count)*100,digits=2 )) %>% #Calculate the % of each category
+  arrange(desc(Percent)) #Arrange it in descending order to showcase the pattern
+
+Adjustment_EngineGroup <- error_vehicle_comp2 %>% 
+  filter(Methods =="Adjustment") %>% #Only take 1 method
+  select(EngineGroup) %>% #Find pattern of EngineGroup in this method
+  group_by(EngineGroup) %>% #Group data for counting values in the next column
+  summarise(Count= n()) %>% #Create a column that count value in each category
+  mutate(Percent = round(Count/sum(Count)*100, digits =2)) %>% #Calculate the % of each category
+  arrange(desc(Percent)) #Arrange it in descending order to showcase the pattern
+  
+Adjustment_BodyStyles #check body style pattern of the adjustment method
+Adjustment_EngineGroup #check engine range pattern of the adjustment method
+```
+#### Adjustment findings
+- Body Styles: Sedans and Hatchbacks still dominate cases with 45.04 and 36.64 percent of vehicles, respectively. Furthermore, similarly to Replacement method, Wagon cars are the third frequent cases with 11.45 percent, which is significantly higher than Convertible (5.34%) and Hardtop (1.53%) cars.
+- Engine Group: The engine groups tend to concentrate on low and medium sizes with 57.25 percent belong to 100-200 group, and 36.64 percent are in 60-100 group. In contrast, other engine groups, such as 200-300, 0-60, or over 300, are recorded less rate, at 4.58, 0.76, and 0.76 percent, respectively.
+
+
